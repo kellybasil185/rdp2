@@ -39,17 +39,35 @@ jobs:
         # Set UserAuthentication to 1 for standard user authentication (Network Level Authentication - NLA)
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
 
-    - name: Create RDP User and Add to Administrators
-      # Ensures the 'runneradmin' user exists and is in the Administrators group.
-      # It first attempts to delete the user (ignoring errors if the user doesn't exist),
-      # then creates the user, and finally adds them to the Administrators group.
+    - name: Set RDP User Password
+      # Sets the password for the default 'runneradmin' user.
+      # The 'runneradmin' user is typically already an administrator on GitHub Actions runners.
+      run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+
+    - name: Start ngrok TCP Tunnel and Display Connection Info
+      # Starts the ngrok TCP tunnel to port 3389 (default RDP port) in the background
+      # Then, it queries the ngrok local API to get the public URL and displays it.
       run: |
-        # Attempt to delete the user first to ensure a clean state.
-        # '2>$null' redirects stderr to null, suppressing "user not found" errors.
-        net user runneradmin /delete 2>$null
+        # Start ngrok in the background. -NoNewWindow prevents a console window from appearing.
+        Start-Process -FilePath .\ngrok\ngrok.exe -ArgumentList "tcp 3389" -NoNewWindow -PassThru | Out-Null
 
-        # Create the user with the specified password
-        net user runneradmin P@ssw0rd! /add
+        # Give ngrok a few seconds to establish the tunnel and expose its local API
+        Start-Sleep -Seconds 10
 
-        # Add the user to the Administrators group
-        net localgroup administrators runneradmin /add
+        # Query the ngrok local API to get details about active tunnels
+        $ngrokApiUrl = "http://localhost:4040/api/tunnels"
+        $tunnelInfo = Invoke-RestMethod -Uri $ngrokApiUrl
+
+        # Extract the public URL (e.g., tcp://0.tcp.ngrok.io:xxxxx) from the first tunnel
+        $publicUrl = $tunnelInfo.tunnels[0].public_url
+
+        # Output the RDP connection details as GitHub Actions notices
+        # These will be prominently displayed in the workflow run logs.
+        Write-Host "::notice title=RDP Connection Info::RDP is ready! Connect to: $publicUrl"
+        Write-Host "::notice title=RDP Connection Info::Username: runneradmin"
+        Write-Host "::notice title=RDP Connection Info::Password: P@ssw0rd!"
+
+        # Keep the job alive for the remaining duration of 'timeout-minutes'.
+        # This loop prevents the workflow from finishing immediately, allowing you to connect via RDP.
+        # The job will automatically terminate when the 'timeout-minutes' limit is reached.
+        while ($true) { Start-Sleep -Seconds 60 }
