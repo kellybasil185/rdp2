@@ -14,9 +14,9 @@ jobs:
 
     steps:
     - name: Download ngrok v3 stable
-      # Downloads the latest stable ngrok v3 for Windows AMD64 directly from ngrok.com
-      # This URL is generally more stable for getting the latest v3 release than a specific patch version.
-      run: Invoke-WebRequest https://ngrok.com/download/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+      # Downloads the latest stable ngrok v3 for Windows AMD64 from a direct distribution link.
+      # This URL is more reliable for direct file download than the ngrok.com/download page.
+      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
 
     - name: Extract ngrok
       # Extracts the downloaded ngrok zip file into a directory named 'ngrok'
