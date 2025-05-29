@@ -13,9 +13,10 @@ jobs:
                          # The RDP session will be active for this duration.
 
     steps:
-    - name: Download latest ngrok
-      # Downloads the latest stable ngrok for Windows AMD64 directly from ngrok.com
-      run: Invoke-WebRequest https://ngrok.com/download/ngrok_latest_windows_amd64.zip -OutFile ngrok.zip
+    - name: Download ngrok v3 stable
+      # Downloads the latest stable ngrok v3 for Windows AMD64 directly from ngrok.com
+      # This URL is generally more stable for getting the latest v3 release than a specific patch version.
+      run: Invoke-WebRequest https://ngrok.com/download/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
 
     - name: Extract ngrok
       # Extracts the downloaded ngrok zip file into a directory named 'ngrok'
