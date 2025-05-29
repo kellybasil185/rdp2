@@ -1,41 +1,75 @@
-name: CI
+name: RDP Access via ngrok
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches:
+      - main # Trigger on push to main branch (or your default branch)
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
 
 jobs:
-
   build:
-
-    runs-on: windows-latest
+    runs-on: windows-latest # Use the latest Windows runner
+    timeout-minutes: 360 # Set a maximum duration for the job (e.g., 6 hours)
+                         # The RDP session will be active for this duration.
 
     steps:
+    - name: Download latest ngrok
+      # Downloads the latest stable ngrok for Windows AMD64 directly from ngrok.com
+      run: Invoke-WebRequest https://ngrok.com/download/ngrok_latest_windows_amd64.zip -OutFile ngrok.zip
 
-    - name: Download
+    - name: Extract ngrok
+      # Extracts the downloaded ngrok zip file into a directory named 'ngrok'
+      run: Expand-Archive ngrok.zip -DestinationPath ngrok -Force
 
-      run: Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-
-    - name: Extract
-
-      run: Expand-Archive ngrok.zip
-
-    - name: Auth
-
+    - name: Authenticate ngrok
+      # Authenticates ngrok using the NGROK_AUTH_TOKEN secret
+      # Make sure you have this secret configured in your repository settings
       run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-
       env:
-
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Enable TS
+    - name: Enable Remote Desktop and Firewall Rules
+      # Configures the Windows system to allow Remote Desktop connections
+      run: |
+        # Set fDenyTSConnections to 0 to enable RDP connections
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        # Enable the built-in Remote Desktop firewall rule
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        # Set UserAuthentication to 1 for standard user authentication (Network Level Authentication - NLA)
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
 
-      run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+    - name: Create RDP User and Add to Administrators
+      # Creates a new local user 'runneradmin' and adds them to the Administrators group
+      # IMPORTANT: The password 'P@ssw0rd!' is hardcoded for simplicity on a temporary runner.
+      # For enhanced security, consider storing this password in a GitHub Secret as well.
+      run: |
+        net user runneradmin P@ssw0rd! /add
+        net localgroup administrators runneradmin /add
 
-    - run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - name: Start ngrok TCP Tunnel and Display Connection Info
+      # Starts the ngrok TCP tunnel to port 3389 (default RDP port) in the background
+      # Then, it queries the ngrok local API to get the public URL and displays it.
+      run: |
+        # Start ngrok in the background. -NoNewWindow prevents a console window from appearing.
+        Start-Process -FilePath .\ngrok\ngrok.exe -ArgumentList "tcp 3389" -NoNewWindow -PassThru | Out-Null
 
-    - run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+        # Give ngrok a few seconds to establish the tunnel and expose its local API
+        Start-Sleep -Seconds 10
 
-    - run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+        # Query the ngrok local API to get details about active tunnels
+        $ngrokApiUrl = "http://localhost:4040/api/tunnels"
+        $tunnelInfo = Invoke-RestMethod -Uri $ngrokApiUrl
 
-    - name: Create Tunnel
+        # Extract the public URL (e.g., tcp://0.tcp.ngrok.io:xxxxx) from the first tunnel
+        $publicUrl = $tunnelInfo.tunnels[0].public_url
 
-      run: .\ngrok\ngrok.exe tcp 3389
+        # Output the RDP connection details as GitHub Actions notices
+        # These will be prominently displayed in the workflow run logs.
+        Write-Host "::notice title=RDP Connection Info::RDP is ready! Connect to: $publicUrl"
+        Write-Host "::notice title=RDP Connection Info::Username: runneradmin"
+        Write-Host "::notice title=RDP Connection Info::Password: P@ssw0rd!"
+
+        # Keep the job alive for the remaining duration of 'timeout-minutes'.
+        # This loop prevents the workflow from finishing immediately, allowing you to connect via RDP.
+        # The job will automatically terminate when the 'timeout-minutes' limit is reached.
+        while ($true) { Start-Sleep -Seconds 60 }
