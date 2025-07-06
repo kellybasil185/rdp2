@@ -46,7 +46,7 @@ jobs:
 
     - name: Start ngrok TCP Tunnel and Display Connection Info
       # Starts the ngrok TCP tunnel to port 3389 (default RDP port) in the background
-      # Then, it queries the ngrok local API to get the public URL and displays it.
+      # Then, it queries the ngrok local API to get the public URL and displays it
       run: |
         # Start ngrok in the background. -NoNewWindow prevents a console window from appearing.
         Start-Process -FilePath .\ngrok\ngrok.exe -ArgumentList "tcp 3389" -NoNewWindow -PassThru | Out-Null
