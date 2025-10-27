@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest # Use the latest Windows runner
-    timeout-minutes: 360 # Set a maximum duration for the job (e.g., 6 hours)
+    timeout-minutes: 360 # Set a maximum duration for the job (e.g., 6 hours) 
                          # The RDP session will be active for this duration.
 
     steps:
