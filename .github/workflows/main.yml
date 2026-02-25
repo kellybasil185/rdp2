@@ -56,7 +56,7 @@ jobs:
 
         # Query the ngrok local API to get details about active tunnels
         $ngrokApiUrl = "http://localhost:4040/api/tunnels"
-        $tunnelInfo = Invoke-RestMethod -Uri $ngrokApiUrl
+        $tunnelInfo = Invoke-RestMethod -Uri $ngrokApiUrl 
 
         # Extract the public URL (e.g., tcp://0.tcp.ngrok.io:xxxxx) from the first tunnel
         $publicUrl = $tunnelInfo.tunnels[0].public_url
